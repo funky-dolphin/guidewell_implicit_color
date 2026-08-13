@@ -96,6 +96,22 @@ body {
   border-radius: 10px;
 }
 
+.palette-preview {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 15px;
+  margin: 24px 0;
+}
+
+.palette-preview-img {
+  width: 420px;
+  max-width: min(46vw, 100%);
+  height: auto;
+  display: block;
+  border-radius: 10px;
+}
+
 @media (max-width: 480px) {
   .jspsych-btn:not(.palette-btn) {
     display: block;

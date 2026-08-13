@@ -131,6 +131,12 @@ function buildFitBlock(category) {
 }
 
 function buildPaletteBlock() {
+  // Shuffled once for the whole block (not per trial) so left/right position
+  // stays fixed for this respondent — randomized across respondents to
+  // counterbalance position bias, but stable within a session so choosing
+  // isn't complicated by the palettes swapping sides every trial.
+  const orderedPalettes = shuffledCopy(PALETTES);
+
   const instructions = {
     type: htmlButtonResponse,
     stimulus: `
@@ -142,11 +148,20 @@ function buildPaletteBlock() {
     choices: ["Start"],
   };
 
-  // Shuffled once for the whole block (not per trial) so left/right position
-  // stays fixed for this respondent — randomized across respondents to
-  // counterbalance position bias, but stable within a session so choosing
-  // isn't complicated by the palettes swapping sides every trial.
-  const orderedPalettes = shuffledCopy(PALETTES);
+  const palettePreview = {
+    type: htmlButtonResponse,
+    stimulus: `
+      <p>You will be answering the next set of association questions for
+      <strong>these two color palettes</strong>.</p>
+      <div class="palette-preview">
+        ${orderedPalettes
+          .map((p) => `<img src="${p.image}" alt="${p.label}" class="palette-preview-img" />`)
+          .join("")}
+      </div>
+      <p>Press Continue when you're ready.</p>
+    `,
+    choices: ["Continue"],
+  };
 
   const trials = shuffledCopy(ATTRIBUTES).map((attribute) => {
     return buildRepeatingTrial({
@@ -176,7 +191,7 @@ function buildPaletteBlock() {
     });
   });
 
-  return [instructions, ...trials];
+  return [instructions, palettePreview, ...trials];
 }
 
 async function run() {

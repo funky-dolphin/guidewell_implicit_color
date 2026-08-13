@@ -1,58 +1,45 @@
-// Firebase wiring: anonymous auth (so Firestore security rules can require
-// request.auth != null without asking respondents to sign in) + one document
-// per session, one subcollection doc per trial response.
+// Firebase wiring: Realtime Database. All of this survey's data lives under
+// the ROOT_NODE path so it doesn't collide with other data in the same
+// database. One node per session, one push-keyed child per trial response.
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getAuth,
-  signInAnonymously,
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {
-  getFirestore,
-  collection,
-  doc,
-  setDoc,
+  getDatabase,
+  ref,
+  set,
+  update,
+  push,
   serverTimestamp,
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 import { firebaseConfig } from "../firebase-config.js";
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+const ROOT_NODE = "implicit_color_survey";
 
-const authReady = signInAnonymously(auth).catch((error) => {
-  console.error("Anonymous sign-in failed:", error);
-  throw error;
-});
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
 export function createSessionId() {
   return crypto.randomUUID();
 }
 
 export async function startSession(sessionId, meta) {
-  await authReady;
-  await setDoc(doc(db, "sessions", sessionId), {
+  await set(ref(db, `${ROOT_NODE}/sessions/${sessionId}`), {
     ...meta,
-    uid: auth.currentUser.uid,
     started_at: serverTimestamp(),
   });
 }
 
 export async function logTrial(sessionId, trialData) {
-  await authReady;
-  const trialRef = doc(collection(db, "sessions", sessionId, "responses"));
-  await setDoc(trialRef, {
+  const trialRef = push(ref(db, `${ROOT_NODE}/sessions/${sessionId}/responses`));
+  await set(trialRef, {
     ...trialData,
     recorded_at: serverTimestamp(),
   });
 }
 
 export async function completeSession(sessionId) {
-  await authReady;
-  await setDoc(
-    doc(db, "sessions", sessionId),
-    { completed_at: serverTimestamp() },
-    { merge: true }
-  );
+  await update(ref(db, `${ROOT_NODE}/sessions/${sessionId}`), {
+    completed_at: serverTimestamp(),
+  });
 }
