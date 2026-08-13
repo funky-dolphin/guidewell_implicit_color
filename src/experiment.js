@@ -142,9 +142,13 @@ function buildPaletteBlock() {
     choices: ["Start"],
   };
 
-  const trials = shuffledCopy(ATTRIBUTES).map((attribute) => {
-    const orderedPalettes = shuffledCopy(PALETTES);
+  // Shuffled once for the whole block (not per trial) so left/right position
+  // stays fixed for this respondent — randomized across respondents to
+  // counterbalance position bias, but stable within a session so choosing
+  // isn't complicated by the palettes swapping sides every trial.
+  const orderedPalettes = shuffledCopy(PALETTES);
 
+  const trials = shuffledCopy(ATTRIBUTES).map((attribute) => {
     return buildRepeatingTrial({
       data: {
         task: "palette_choice",
