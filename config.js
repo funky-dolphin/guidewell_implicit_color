@@ -26,7 +26,7 @@ export const PALETTES = [
 // accepted on any trial (fit judgment or palette choice). Responses faster
 // than this are rejected and the same trial repeats. This guards against
 // respondents rushing/spamming through the survey. Set to 0 to disable.
-export const MIN_RESPONSE_TIME_MS = 3;
+export const MIN_RESPONSE_TIME_MS = 300;
 
 // Where respondents are sent after completing this survey (part 3 of 3).
 // The `state` and `rdud` query params are captured from this survey's own
