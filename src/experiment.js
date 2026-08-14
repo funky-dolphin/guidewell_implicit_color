@@ -2,15 +2,34 @@ import { initJsPsych } from "jspsych";
 import htmlButtonResponse from "https://unpkg.com/@jspsych/plugin-html-button-response@1.1.3/dist/index.js";
 import preload from "https://unpkg.com/@jspsych/plugin-preload@1.1.3/dist/index.js";
 
-import { CATEGORIES, ATTRIBUTES, PALETTES, MIN_RESPONSE_TIME_MS } from "../config.js";
+import { CATEGORIES, ATTRIBUTES, PALETTES, MIN_RESPONSE_TIME_MS, NEXT_SURVEY_URL } from "../config.js";
 import { createSessionId, startSession, logTrial, completeSession } from "./firebase.js";
 
 const sessionId = createSessionId();
 
+// This survey is part 2 of 3. `rdud` and `state` arrive as query params on
+// our own inbound URL and must be captured, saved, and passed through
+// unchanged to part 3 (Decipher) when this survey finishes.
+const inboundParams = new URLSearchParams(window.location.search);
+const rdud = inboundParams.get("rdud") || "";
+const state = inboundParams.get("state") || "";
+const inboundCode = inboundParams.get("inbound_code") || "";
+
+function buildNextSurveyUrl() {
+  const params = new URLSearchParams({ list: "1" });
+  params.set("state", state);
+  params.set("rdud", rdud);
+  return `${NEXT_SURVEY_URL}?${params.toString()}`;
+}
+
 const jsPsych = initJsPsych({
   display_element: "jspsych-target",
   on_finish: () => {
-    completeSession(sessionId).catch((error) => console.error("Failed to complete session:", error));
+    completeSession(sessionId)
+      .catch((error) => console.error("Failed to complete session:", error))
+      .finally(() => {
+        window.location.href = buildNextSurveyUrl();
+      });
   },
 });
 
@@ -203,6 +222,9 @@ async function run() {
   startSession(sessionId, {
     user_agent: navigator.userAgent,
     category_order: categoryOrder.map((c) => c.id),
+    rdud,
+    state,
+    inbound_code: inboundCode,
   }).catch((error) => console.error("Failed to start Firebase session:", error));
 
   const timeline = [
