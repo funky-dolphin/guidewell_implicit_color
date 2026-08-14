@@ -3,7 +3,7 @@
 // no other file needs to change.
 
 export const CATEGORIES = [
-  { id: "technology", label: "Technology" },
+  { id: "technology", label: "Technology Companies" },
   { id: "wellness", label: "Wellness" },
   { id: "health_insurance", label: "Health Insurance" },
 ];

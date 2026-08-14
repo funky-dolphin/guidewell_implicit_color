@@ -244,7 +244,7 @@ async function run() {
 
   timeline.push({
     type: htmlButtonResponse,
-    stimulus: "<h2>Thank you!</h2><p>Your responses have been recorded. Please click the continue button to proveeed to the final portion of the strudy. Do not close your browser window.</p>",
+    stimulus: "<h2>Thank you!</h2><p>Your responses have been recorded. Please click the continue button to proceed to the final portion of the study. Do not close your browser window.</p>",
     choices: ["Continue"],
   });
 
