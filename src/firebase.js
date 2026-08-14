@@ -1,6 +1,8 @@
 // Firebase wiring: Realtime Database. All of this survey's data lives under
 // the ROOT_NODE path so it doesn't collide with other data in the same
-// database. One node per session, one push-keyed child per trial response.
+// database. Each respondent is a node directly under ROOT_NODE (keyed by
+// session ID), holding their own metadata plus a "responses" child with one
+// push-keyed entry per trial.
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
@@ -24,14 +26,14 @@ export function createSessionId() {
 }
 
 export async function startSession(sessionId, meta) {
-  await set(ref(db, `${ROOT_NODE}/sessions/${sessionId}`), {
+  await set(ref(db, `${ROOT_NODE}/${sessionId}`), {
     ...meta,
     started_at: serverTimestamp(),
   });
 }
 
 export async function logTrial(sessionId, trialData) {
-  const trialRef = push(ref(db, `${ROOT_NODE}/sessions/${sessionId}/responses`));
+  const trialRef = push(ref(db, `${ROOT_NODE}/${sessionId}/responses`));
   await set(trialRef, {
     ...trialData,
     recorded_at: serverTimestamp(),
@@ -39,7 +41,7 @@ export async function logTrial(sessionId, trialData) {
 }
 
 export async function completeSession(sessionId) {
-  await update(ref(db, `${ROOT_NODE}/sessions/${sessionId}`), {
+  await update(ref(db, `${ROOT_NODE}/${sessionId}`), {
     completed_at: serverTimestamp(),
   });
 }
