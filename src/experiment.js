@@ -105,7 +105,7 @@ function buildFitBlock(category) {
       <h2>${category.label}</h2>
       <p>You'll see a series of words. For each one, choose as quickly as you
       can whether it <strong>Fits</strong> or <strong>Does Not Fit</strong>
-      with "${category.label}".</p>
+      with your personal impressions of "${category.label}".</p>
       <p>On a computer, you can also press <strong>E</strong> for Fits or
       <strong>I</strong> for Does Not Fit.</p>
     `,
@@ -171,13 +171,15 @@ function buildPaletteBlock() {
     type: htmlButtonResponse,
     stimulus: `
       <p>You will be answering the next set of association questions for
-      <strong>these two color palettes</strong>.</p>
+      <strong>these two color palettes</strong> Take a moment to familiarize yourself with each.
+      When you see a word, quickly pick the color palette that closely matches that word.</p>
       <div class="palette-preview">
         ${orderedPalettes
           .map((p) => `<img src="${p.image}" alt="${p.label}" class="palette-preview-img" />`)
           .join("")}
       </div>
-      <p>Press Continue when you're ready.</p>
+      <p>You may press E for the left color palette and I for the right color palette, or simply click the palette of your choice.
+      Press Continue when you're ready.</p>
     `,
     choices: ["Continue"],
   };
@@ -242,8 +244,8 @@ async function run() {
 
   timeline.push({
     type: htmlButtonResponse,
-    stimulus: "<h2>Thank you!</h2><p>Your responses have been recorded.</p>",
-    choices: ["Finish"],
+    stimulus: "<h2>Thank you!</h2><p>Your responses have been recorded. Please click the continue button to proveeed to the final portion of the strudy. Do not close your browser window.</p>",
+    choices: ["Continue"],
   });
 
   jsPsych.run(timeline);
