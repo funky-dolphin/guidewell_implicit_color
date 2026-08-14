@@ -4,8 +4,8 @@
 
 export const CATEGORIES = [
   { id: "technology", label: "Technology Companies" },
-  { id: "wellness", label: "Wellness" },
-  { id: "health_insurance", label: "Health Insurance" },
+  { id: "wellness", label: "Wellness Companies" },
+  { id: "health_insurance", label: "Health Insurance Companies" },
 ];
 
 // TODO: replace with the real ~30 attribute words/phrases.
