@@ -98,12 +98,56 @@ function buildRepeatingTrial({ data, buildStimulus, buildChoices, buildButtonHtm
   return { timeline: [trial], loop_function: () => !state.done };
 }
 
+function buildIntroScreen() {
+  return {
+    type: htmlButtonResponse,
+    stimulus: `
+      <h2>Welcome</h2>
+      <p>In this survey, you'll be shown two color palettes, one at a time.
+      For each palette, you'll see a series of words and quickly decide
+      whether each one <strong>Fits</strong> or <strong>Does Not Fit</strong>
+      your personal impression of that palette.</p>
+      <p>There are no right or wrong answers — please go with your first
+      instinct and respond as quickly as you comfortably can.</p>
+    `,
+    choices: ["Continue"],
+  };
+}
+
+function buildPaletteFamiliarizationScreen(paletteOrder) {
+  return {
+    type: htmlButtonResponse,
+    stimulus: `
+      <h2>The Color Palettes</h2>
+      <p>Take a moment to look at both color palettes below. You'll be asked
+      to respond to a series of words for each one, separately.</p>
+      <div class="palette-preview">
+        ${paletteOrder
+          .map((p) => `<img src="${p.image}" alt="${p.label}" class="palette-preview-img" />`)
+          .join("")}
+      </div>
+    `,
+    choices: ["Continue"],
+  };
+}
+
+function buildBreakerScreen() {
+  return {
+    type: htmlButtonResponse,
+    stimulus: `
+      <h2>Nice work!</h2>
+      <p>You've completed the first set of questions. Next, you'll answer
+      the same kind of questions for the second color palette.</p>
+    `,
+    choices: ["Continue"],
+  };
+}
+
 function buildFitBlock(palette) {
   const instructions = {
     type: htmlButtonResponse,
     stimulus: `
       <h2>${palette.label}</h2>
-      <p>Take a moment to familiarize yourself with this color palette.</p>
       <img src="${palette.image}" alt="${palette.label}" class="palette-preview-img" />
       <p>You'll see a series of words. For each one, choose as quickly as you
       can whether it <strong>Fits</strong> or <strong>Does Not Fit</strong>
@@ -172,10 +216,15 @@ async function run() {
       type: preload,
       images: PALETTES.map((p) => p.image),
     },
+    buildIntroScreen(),
+    buildPaletteFamiliarizationScreen(paletteOrder),
   ];
 
-  paletteOrder.forEach((palette) => {
+  paletteOrder.forEach((palette, index) => {
     timeline.push(...buildFitBlock(palette));
+    if (index < paletteOrder.length - 1) {
+      timeline.push(buildBreakerScreen());
+    }
   });
 
   timeline.push({
