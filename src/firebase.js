@@ -16,7 +16,7 @@ import {
 
 import { firebaseConfig } from "../firebase-config.js";
 
-const ROOT_NODE = "implicit_color_survey";
+const ROOT_NODE = "implicit_color_survey_v2";
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);

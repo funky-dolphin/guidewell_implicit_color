@@ -2,7 +2,7 @@ import { initJsPsych } from "jspsych";
 import htmlButtonResponse from "https://unpkg.com/@jspsych/plugin-html-button-response@1.1.3/dist/index.js";
 import preload from "https://unpkg.com/@jspsych/plugin-preload@1.1.3/dist/index.js";
 
-import { CATEGORIES, ATTRIBUTES, PALETTES, MIN_RESPONSE_TIME_MS, NEXT_SURVEY_URL } from "../config.js";
+import { ATTRIBUTES, PALETTES, MIN_RESPONSE_TIME_MS, NEXT_SURVEY_URL } from "../config.js";
 import { createSessionId, startSession, logTrial, completeSession } from "./firebase.js";
 
 const sessionId = createSessionId();
@@ -98,14 +98,16 @@ function buildRepeatingTrial({ data, buildStimulus, buildChoices, buildButtonHtm
   return { timeline: [trial], loop_function: () => !state.done };
 }
 
-function buildFitBlock(category) {
+function buildFitBlock(palette) {
   const instructions = {
     type: htmlButtonResponse,
     stimulus: `
-      <h2>${category.label}</h2>
+      <h2>${palette.label}</h2>
+      <p>Take a moment to familiarize yourself with this color palette.</p>
+      <img src="${palette.image}" alt="${palette.label}" class="palette-preview-img" />
       <p>You'll see a series of words. For each one, choose as quickly as you
       can whether it <strong>Fits</strong> or <strong>Does Not Fit</strong>
-      with your personal impressions of "${category.label}".</p>
+      with your personal impressions of this color palette.</p>
       <p>On a computer, you can also press <strong>E</strong> for Fits or
       <strong>I</strong> for Does Not Fit.</p>
     `,
@@ -118,12 +120,12 @@ function buildFitBlock(category) {
     buildRepeatingTrial({
       data: {
         task: "fit_judgment",
-        category_id: category.id,
-        category_label: category.label,
+        palette_id: palette.id,
+        palette_label: palette.label,
         attribute,
       },
       buildStimulus: () => `
-        <div class="category-label">${category.label}</div>
+        <img src="${palette.image}" alt="${palette.label}" class="trial-palette-img" />
         <div class="attribute-word">${attribute}</div>
       `,
       buildChoices: () => choices,
@@ -136,8 +138,8 @@ function buildFitBlock(category) {
         data.response_label = choices[data.response];
         logTrial(sessionId, {
           task: data.task,
-          category_id: data.category_id,
-          category_label: data.category_label,
+          palette_id: data.palette_id,
+          palette_label: data.palette_label,
           attribute: data.attribute,
           response_label: data.response_label,
           rt_ms: data.rt,
@@ -149,81 +151,17 @@ function buildFitBlock(category) {
   return [instructions, ...trials];
 }
 
-function buildPaletteBlock() {
-  // Shuffled once for the whole block (not per trial) so left/right position
-  // stays fixed for this respondent — randomized across respondents to
-  // counterbalance position bias, but stable within a session so choosing
-  // isn't complicated by the palettes swapping sides every trial.
-  const orderedPalettes = shuffledCopy(PALETTES);
-
-  const instructions = {
-    type: htmlButtonResponse,
-    stimulus: `
-      <h2>Color Match</h2>
-      <p>For each word, choose the color palette you feel best fits it.</p>
-      <p>On a computer, you can also press <strong>E</strong> for the left
-      palette or <strong>I</strong> for the right palette.</p>
-    `,
-    choices: ["Start"],
-  };
-
-  const palettePreview = {
-    type: htmlButtonResponse,
-    stimulus: `
-      <p>You will be answering the next set of association questions for
-      <strong>these two color palettes</strong> Take a moment to familiarize yourself with each.
-      When you see a word, quickly pick the color palette that closely matches that word.</p>
-      <div class="palette-preview">
-        ${orderedPalettes
-          .map((p) => `<img src="${p.image}" alt="${p.label}" class="palette-preview-img" />`)
-          .join("")}
-      </div>
-      <p>You may press E for the left color palette and I for the right color palette, or simply click the palette of your choice.
-      Press Continue when you're ready.</p>
-    `,
-    choices: ["Continue"],
-  };
-
-  const trials = shuffledCopy(ATTRIBUTES).map((attribute) => {
-    return buildRepeatingTrial({
-      data: {
-        task: "palette_choice",
-        attribute,
-      },
-      buildStimulus: () => `<div class="attribute-word">${attribute}</div>`,
-      buildChoices: () => orderedPalettes.map((p) => p.label),
-      buildButtonHtml: () =>
-        orderedPalettes.map(
-          (p) => `<button class="jspsych-btn palette-btn"><img src="${p.image}" alt="${p.label}" /></button>`
-        ),
-      onLoad: () => bindKeyboardChoice(),
-      onValidResponse: (data) => {
-        const chosen = orderedPalettes[data.response];
-        data.palette_id = chosen.id;
-        data.palette_label = chosen.label;
-        logTrial(sessionId, {
-          task: data.task,
-          attribute: data.attribute,
-          palette_id: data.palette_id,
-          palette_label: data.palette_label,
-          rt_ms: data.rt,
-        }).catch((error) => console.error("Failed to log trial:", error));
-      },
-    });
-  });
-
-  return [instructions, palettePreview, ...trials];
-}
-
 async function run() {
-  const categoryOrder = shuffledCopy(CATEGORIES);
+  // Randomized across respondents to counterbalance order effects, but each
+  // respondent still completes both palette blocks in full.
+  const paletteOrder = shuffledCopy(PALETTES);
 
   // Fire-and-forget: a Firebase hiccup (or, right now, the placeholder
   // credentials in firebase-config.js) should never block the survey
   // from rendering for the respondent.
   startSession(sessionId, {
     user_agent: navigator.userAgent,
-    category_order: categoryOrder.map((c) => c.id),
+    palette_order: paletteOrder.map((p) => p.id),
     rdud,
     state,
     inbound_code: inboundCode,
@@ -236,11 +174,9 @@ async function run() {
     },
   ];
 
-  categoryOrder.forEach((category) => {
-    timeline.push(...buildFitBlock(category));
+  paletteOrder.forEach((palette) => {
+    timeline.push(...buildFitBlock(palette));
   });
-
-  timeline.push(...buildPaletteBlock());
 
   timeline.push({
     type: htmlButtonResponse,

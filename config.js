@@ -1,22 +1,16 @@
 // Survey content configuration.
-// Edit CATEGORIES, ATTRIBUTES, and PALETTES to change what the survey tests —
+// Edit ATTRIBUTES and PALETTES to change what the survey tests —
 // no other file needs to change.
 
-export const CATEGORIES = [
-  { id: "technology", label: "Technology Companies" },
-  { id: "wellness", label: "Wellness Companies" },
-  { id: "health_insurance", label: "Health Insurance Companies" },
-];
-
 // TODO: replace with the real ~30 attribute words/phrases.
-// This same list is used for both the category fit/does-not-fit blocks
-// and the color palette block.
+// This list is used for both palette fit/does-not-fit SIAT blocks.
 export const ATTRIBUTES = ["Compassionate", "Connected", "Tech-forward", "Personal", "Inspiring", "Optimistic", "Bold", "Visionary", "Human", "Transformational", "Trustworthy", "Modern", "Innovative", "Energizing", "Approachable", "Distinctive", "Supportive", "Healthy", "Caring", "Credible", "Empathetic", "Hopeful", "Courageous", "Honorable", "Empowering", "Sophisticated", "Confident"];
 
 
-// The two color palettes respondents choose between. `image` paths are
-// relative to index.html. Swap these for the real palette artwork —
-// PNG/JPG/SVG all work.
+// The two color palettes, each run as its own single-implicit (SIAT) block:
+// respondents see the palette as the stimulus and judge fit/does-not-fit for
+// each attribute. `image` paths are relative to index.html. Swap these for
+// the real palette artwork — PNG/JPG/SVG all work.
 export const PALETTES = [
   { id: "palette_a", label: "Palette A", image: "assets/images/guidewell_pallete_a.png" },
   { id: "palette_b", label: "Palette B", image: "assets/images/guidewell_pallete_b.png" },
