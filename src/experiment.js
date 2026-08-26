@@ -25,11 +25,22 @@ function buildNextSurveyUrl() {
 const jsPsych = initJsPsych({
   display_element: "jspsych-target",
   on_finish: () => {
+    let redirected = false;
+    const redirectOnce = () => {
+      if (redirected) return;
+      redirected = true;
+      window.location.href = buildNextSurveyUrl();
+    };
+
+    // Some ad blockers and mobile networks treat *.firebaseio.com as a
+    // tracker and silently hang the request instead of rejecting it, which
+    // would leave completeSession's promise unsettled forever. This hard
+    // timeout guarantees the respondent moves on regardless.
+    setTimeout(redirectOnce, 2000);
+
     completeSession(sessionId)
       .catch((error) => console.error("Failed to complete session:", error))
-      .finally(() => {
-        window.location.href = buildNextSurveyUrl();
-      });
+      .finally(redirectOnce);
   },
 });
 
