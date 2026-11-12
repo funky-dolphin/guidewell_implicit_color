@@ -76,7 +76,31 @@ body {
   border-color: #74c0fc;
 }
 
+.button-with-hint {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.key-hint {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #868e96;
+  margin-top: -2px;
+}
+
+/* No keyboard on touch-only devices, so the shortcut labels are noise. */
+@media (hover: none) and (pointer: coarse) {
+  .key-hint {
+    display: none;
+  }
+}
+
 @media (max-width: 480px) {
+  .button-with-hint {
+    display: flex;
+  }
+
   .jspsych-btn {
     display: block;
     width: 100%;

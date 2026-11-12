@@ -9,7 +9,7 @@
 //   image — logo path, relative to index.html (PNG/JPG/SVG all work)
 // TODO: replace placeholders with the real brand names and logo files.
 export const BRANDS = [
-  { id: "Localiza", label: "Localiza", image: "assets/images/brands/Local_logo.webp" },
+  { id: "Localiza", label: "Localiza", image: "assets/images/brands/Localiza_logo.webp" },
   { id: "Airbnb", label: "Airbnb", image: "assets/images/brands/Airbnb_Logo.webp" },
   { id: "ifood", label: "ifood", image: "assets/images/brands/ifood_logo.webp" },
   { id: "Nubank", label: "Nubank", image: "assets/images/brands/Nubank_logo.webp" },
@@ -103,6 +103,12 @@ export const TEXT = {
   fits_button: "Combina",
   does_not_fit_button: "Não Combina",
 
+  // Keyboard shortcut labels shown beneath the buttons (hidden on
+  // touch-only devices, where there's no keyboard).
+  fits_key_hint: "[E]",
+  does_not_fit_key_hint: "[I]",
+  space_key_hint: "[Espaço]",
+
   too_fast_html: `<p class="too-fast-warning">Muito rápido — por favor, reserve um momento para considerar cada palavra antes de responder.</p>`,
   too_fast_button: "Continuar",
 
@@ -123,4 +129,6 @@ export const MIN_RESPONSE_TIME_MS = 200;
 // Where respondents are sent after completing this survey (part 3 of 3).
 // The `state` and `rdud` query params are captured from this survey's own
 // inbound URL and appended automatically — don't include them here.
-export const NEXT_SURVEY_URL = "https://sw2.decipherinc.com/survey/selfserve/34fd/260809";
+export const NEXT_SURVEY_URL = "https://sw2.decipherinc.com/survey/selfserve/34fd/261112";
+
+

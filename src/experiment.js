@@ -52,23 +52,53 @@ function withBrand(text, brand) {
   return text.replaceAll("{brand}", brand.label);
 }
 
-// Lets desktop respondents answer with the classic IAT keys (E = left
-// button, I = right button) in addition to clicking/tapping. Returns a
-// cleanup function to remove the listener once the trial ends.
-function bindKeyboardChoice() {
+// Lets desktop respondents press keys in addition to clicking/tapping.
+// `keyMap` maps a key (event.key, lowercased; " " is the space bar) to a
+// button index. Returns a cleanup function to remove the listener once the
+// trial ends. Held-down key repeats are ignored.
+function bindKeys(keyMap) {
   const handler = (event) => {
-    const key = event.key.toLowerCase();
-    if (key === "e") {
-      document.querySelector("#jspsych-html-button-response-button-0")?.click();
-    } else if (key === "i") {
-      document.querySelector("#jspsych-html-button-response-button-1")?.click();
-    }
+    if (event.repeat) return;
+    const index = keyMap[event.key.toLowerCase()];
+    if (index === undefined) return;
+    event.preventDefault(); // stops the space bar from scrolling the page
+    document.querySelector(`#jspsych-html-button-response-button-${index}`)?.click();
   };
   document.addEventListener("keydown", handler);
   return () => document.removeEventListener("keydown", handler);
 }
 
-const DEFAULT_BUTTON_HTML = '<button class="jspsych-btn">%choice%</button>';
+// Classic IAT keys: E = left button, I = right button.
+const bindFitKeys = () => bindKeys({ e: 0, i: 1 });
+const bindContinueKey = () => bindKeys({ " ": 0 });
+
+// A button with its keyboard shortcut shown beneath it.
+function buttonWithHint(className, hint) {
+  return `
+    <div class="button-with-hint">
+      <button class="jspsych-btn ${className}">%choice%</button>
+      <div class="key-hint">${hint}</div>
+    </div>
+  `;
+}
+
+const CONTINUE_BUTTON_HTML = buttonWithHint("", TEXT.space_key_hint);
+
+// A single-button screen (intro, brand intro, thank you) that also advances
+// with the space bar.
+function continueScreen(stimulus, buttonLabel) {
+  let cleanup = () => {};
+  return {
+    type: htmlButtonResponse,
+    stimulus,
+    choices: [buttonLabel],
+    button_html: CONTINUE_BUTTON_HTML,
+    on_load: () => {
+      cleanup = bindContinueKey();
+    },
+    on_finish: () => cleanup(),
+  };
+}
 
 // Builds a single trial that alternates between two phases: the actual
 // question, and (if answered too fast) a standalone warning screen shown on
@@ -84,21 +114,18 @@ function buildRepeatingTrial({ data, buildStimulus, buildChoices, buildButtonHtm
     type: htmlButtonResponse,
     stimulus: () => (trialState.phase === "warning" ? TEXT.too_fast_html : buildStimulus()),
     choices: () => (trialState.phase === "warning" ? [TEXT.too_fast_button] : buildChoices()),
-    button_html: () =>
-      trialState.phase === "warning" ? DEFAULT_BUTTON_HTML : buildButtonHtml ? buildButtonHtml() : DEFAULT_BUTTON_HTML,
+    button_html: () => (trialState.phase === "warning" ? CONTINUE_BUTTON_HTML : buildButtonHtml()),
     data,
     on_load: () => {
-      if (trialState.phase === "question" && onLoad) {
-        cleanupKeyboard = onLoad();
-      }
+      cleanupKeyboard = trialState.phase === "warning" ? bindContinueKey() : onLoad();
     },
     on_finish: (data) => {
+      cleanupKeyboard();
+      cleanupKeyboard = () => {};
       if (trialState.phase === "warning") {
         trialState.phase = "question";
         return;
       }
-      cleanupKeyboard();
-      cleanupKeyboard = () => {};
       const tooFast = data.rt !== null && data.rt < MIN_RESPONSE_TIME_MS;
       if (tooFast) {
         trialState.phase = "warning";
@@ -123,20 +150,19 @@ function brandHeader(brand) {
 
 // Fixed order: Fits is always left (button 0 / E key).
 const FIT_RESPONSES = [
-  { code: "fits", label: TEXT.fits_button, className: "fits-btn" },
-  { code: "does_not_fit", label: TEXT.does_not_fit_button, className: "does-not-fit-btn" },
+  { code: "fits", label: TEXT.fits_button, className: "fits-btn", hint: TEXT.fits_key_hint },
+  { code: "does_not_fit", label: TEXT.does_not_fit_button, className: "does-not-fit-btn", hint: TEXT.does_not_fit_key_hint },
 ];
 
 function buildBrandBlock(brand, brandIndex) {
-  const brandIntro = {
-    type: htmlButtonResponse,
-    stimulus: `
+  const brandIntro = continueScreen(
+    `
       ${withBrand(TEXT.brand_intro_before_html, brand)}
       ${brandHeader(brand)}
       ${withBrand(TEXT.brand_intro_after_html, brand)}
     `,
-    choices: [TEXT.brand_intro_button],
-  };
+    TEXT.brand_intro_button
+  );
 
   const trials = shuffledCopy(ATTRIBUTES).map((attribute, attributeIndex) =>
     buildRepeatingTrial({
@@ -153,9 +179,8 @@ function buildBrandBlock(brand, brandIndex) {
         <div class="attribute-word">${attribute}</div>
       `,
       buildChoices: () => FIT_RESPONSES.map((r) => r.label),
-      buildButtonHtml: () =>
-        FIT_RESPONSES.map((r) => `<button class="jspsych-btn ${r.className}">%choice%</button>`),
-      onLoad: () => bindKeyboardChoice(),
+      buildButtonHtml: () => FIT_RESPONSES.map((r) => buttonWithHint(r.className, r.hint)),
+      onLoad: bindFitKeys,
       onValidResponse: (data) => {
         const chosen = FIT_RESPONSES[data.response];
         data.response_code = chosen.code;
@@ -198,22 +223,14 @@ function run() {
       type: preload,
       images: BRANDS.map((b) => b.image),
     },
-    {
-      type: htmlButtonResponse,
-      stimulus: TEXT.intro_html,
-      choices: [TEXT.intro_button],
-    },
+    continueScreen(TEXT.intro_html, TEXT.intro_button),
   ];
 
   brandOrder.forEach((brand, brandIndex) => {
     timeline.push(...buildBrandBlock(brand, brandIndex));
   });
 
-  timeline.push({
-    type: htmlButtonResponse,
-    stimulus: TEXT.thank_you_html,
-    choices: [TEXT.thank_you_button],
-  });
+  timeline.push(continueScreen(TEXT.thank_you_html, TEXT.thank_you_button));
 
   jsPsych.run(timeline);
 }
