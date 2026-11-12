@@ -17,16 +17,26 @@ body {
   text-align: center;
 }
 
-.category-label {
-  width: fit-content;
+.brand-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   margin: 0 auto 24px;
-  font-size: 1.75rem;
+}
+
+.brand-logo {
+  max-width: min(240px, 60vw);
+  max-height: 120px;
+  width: auto;
+  height: auto;
+  display: block;
+}
+
+.brand-label {
+  font-size: 1.5rem;
   font-weight: 700;
   color: #1a1a1a;
-  background: #fff;
-  border: 2px solid #dcdcdc;
-  border-radius: 12px;
-  padding: 12px 28px;
 }
 
 .attribute-word {
@@ -66,54 +76,8 @@ body {
   border-color: #74c0fc;
 }
 
-/* Force the palette pair onto a single row, shrinking as needed, without
-   affecting the Fits/Does Not Fit button group's own layout rules. */
-#jspsych-html-button-response-btngroup:has(.palette-btn) {
-  display: flex;
-  flex-wrap: nowrap;
-  justify-content: center;
-  gap: 15px;
-}
-
-#jspsych-html-button-response-btngroup:has(.palette-btn) > div {
-  min-width: 0;
-}
-
-.palette-btn {
-  display: block;
-  width: 100%;
-  padding: 8px;
-  min-width: 0;
-  background: none;
-}
-
-.palette-btn img {
-  width: 420px;
-  max-width: min(46vw, 100%);
-  height: auto;
-  display: block;
-  margin: 0 auto;
-  border-radius: 10px;
-}
-
-.palette-preview {
-  display: flex;
-  flex-wrap: nowrap;
-  justify-content: center;
-  gap: 15px;
-  margin: 24px 0;
-}
-
-.palette-preview-img {
-  width: 420px;
-  max-width: min(46vw, 100%);
-  height: auto;
-  display: block;
-  border-radius: 10px;
-}
-
 @media (max-width: 480px) {
-  .jspsych-btn:not(.palette-btn) {
+  .jspsych-btn {
     display: block;
     width: 100%;
     margin: 8px 0;

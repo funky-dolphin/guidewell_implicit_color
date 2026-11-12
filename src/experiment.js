@@ -2,28 +2,39 @@ import { initJsPsych } from "jspsych";
 import htmlButtonResponse from "https://unpkg.com/@jspsych/plugin-html-button-response@1.1.3/dist/index.js";
 import preload from "https://unpkg.com/@jspsych/plugin-preload@1.1.3/dist/index.js";
 
-import { CATEGORIES, ATTRIBUTES, PALETTES, MIN_RESPONSE_TIME_MS, NEXT_SURVEY_URL } from "../config.js";
+import { BRANDS, ATTRIBUTES, TEXT, MIN_RESPONSE_TIME_MS, NEXT_SURVEY_URL } from "../config.js";
 import { createSessionId, startSession, logTrial, completeSession } from "./firebase.js";
 
 const sessionId = createSessionId();
+
+document.title = TEXT.page_title;
 
 // This survey is part 2 of 3. `rdud` and `state` arrive as query params on
 // our own inbound URL and must be captured, saved, and passed through
 // unchanged to part 3 (Decipher) when this survey finishes.
 const inboundParams = new URLSearchParams(window.location.search);
 const rdud = inboundParams.get("rdud") || "";
-const state = inboundParams.get("state") || "";
+const surveyState = inboundParams.get("state") || "";
 const inboundCode = inboundParams.get("inbound_code") || "";
 
 function buildNextSurveyUrl() {
   const params = new URLSearchParams({ list: "1" });
-  params.set("state", state);
+  params.set("state", surveyState);
   params.set("rdud", rdud);
   return `${NEXT_SURVEY_URL}?${params.toString()}`;
 }
 
+// Progress is advanced manually (only on valid fit judgments) rather than
+// auto-updated, because auto-update counts every trial — including intro
+// screens and too-fast warning repeats — which would make the bar jump.
+const TOTAL_JUDGMENTS = BRANDS.length * ATTRIBUTES.length;
+let completedJudgments = 0;
+
 const jsPsych = initJsPsych({
   display_element: "jspsych-target",
+  show_progress_bar: true,
+  auto_update_progress_bar: false,
+  message_progress_bar: TEXT.progress_bar_label,
   on_finish: () => {
     completeSession(sessionId)
       .catch((error) => console.error("Failed to complete session:", error))
@@ -35,6 +46,10 @@ const jsPsych = initJsPsych({
 
 function shuffledCopy(array) {
   return jsPsych.randomization.shuffle(array.slice());
+}
+
+function withBrand(text, brand) {
+  return text.replaceAll("{brand}", brand.label);
 }
 
 // Lets desktop respondents answer with the classic IAT keys (E = left
@@ -53,7 +68,6 @@ function bindKeyboardChoice() {
   return () => document.removeEventListener("keydown", handler);
 }
 
-const TOO_FAST_WARNING = `<p class="too-fast-warning">That was too fast — please take a moment to consider each word before responding.</p>`;
 const DEFAULT_BUTTON_HTML = '<button class="jspsych-btn">%choice%</button>';
 
 // Builds a single trial that alternates between two phases: the actual
@@ -63,82 +77,99 @@ const DEFAULT_BUTTON_HTML = '<button class="jspsych-btn">%choice%</button>';
 // per-pass evaluation of a second sibling trial's conditional_function,
 // which does not reliably see the value the *current* pass just set.
 function buildRepeatingTrial({ data, buildStimulus, buildChoices, buildButtonHtml, onLoad, onValidResponse }) {
-  const state = { phase: "question", done: false };
+  const trialState = { phase: "question", done: false };
   let cleanupKeyboard = () => {};
 
   const trial = {
     type: htmlButtonResponse,
-    stimulus: () => (state.phase === "warning" ? TOO_FAST_WARNING : buildStimulus()),
-    choices: () => (state.phase === "warning" ? ["Continue"] : buildChoices()),
+    stimulus: () => (trialState.phase === "warning" ? TEXT.too_fast_html : buildStimulus()),
+    choices: () => (trialState.phase === "warning" ? [TEXT.too_fast_button] : buildChoices()),
     button_html: () =>
-      state.phase === "warning" ? DEFAULT_BUTTON_HTML : buildButtonHtml ? buildButtonHtml() : DEFAULT_BUTTON_HTML,
+      trialState.phase === "warning" ? DEFAULT_BUTTON_HTML : buildButtonHtml ? buildButtonHtml() : DEFAULT_BUTTON_HTML,
     data,
     on_load: () => {
-      if (state.phase === "question" && onLoad) {
+      if (trialState.phase === "question" && onLoad) {
         cleanupKeyboard = onLoad();
       }
     },
     on_finish: (data) => {
-      if (state.phase === "warning") {
-        state.phase = "question";
+      if (trialState.phase === "warning") {
+        trialState.phase = "question";
         return;
       }
       cleanupKeyboard();
       cleanupKeyboard = () => {};
       const tooFast = data.rt !== null && data.rt < MIN_RESPONSE_TIME_MS;
       if (tooFast) {
-        state.phase = "warning";
+        trialState.phase = "warning";
         return;
       }
-      state.done = true;
+      trialState.done = true;
       onValidResponse(data);
     },
   };
 
-  return { timeline: [trial], loop_function: () => !state.done };
+  return { timeline: [trial], loop_function: () => !trialState.done };
 }
 
-function buildFitBlock(category) {
-  const instructions = {
+function brandHeader(brand) {
+  return `
+    <div class="brand-header">
+      <img src="${brand.image}" alt="${brand.label}" class="brand-logo" />
+      <div class="brand-label">${brand.label}</div>
+    </div>
+  `;
+}
+
+// Fixed order: Fits is always left (button 0 / E key).
+const FIT_RESPONSES = [
+  { code: "fits", label: TEXT.fits_button, className: "fits-btn" },
+  { code: "does_not_fit", label: TEXT.does_not_fit_button, className: "does-not-fit-btn" },
+];
+
+function buildBrandBlock(brand, brandIndex) {
+  const brandIntro = {
     type: htmlButtonResponse,
     stimulus: `
-      <h2>${category.label}</h2>
-      <p>You'll see a series of words. For each one, choose as quickly as you
-      can whether it <strong>Fits</strong> or <strong>Does Not Fit</strong>
-      with your personal impressions of "${category.label}".</p>
-      <p>On a computer, you can also press <strong>E</strong> for Fits or
-      <strong>I</strong> for Does Not Fit.</p>
+      ${withBrand(TEXT.brand_intro_before_html, brand)}
+      ${brandHeader(brand)}
+      ${withBrand(TEXT.brand_intro_after_html, brand)}
     `,
-    choices: ["Start"],
+    choices: [TEXT.brand_intro_button],
   };
 
-  const choices = ["Fits", "Does Not Fit"];
-
-  const trials = shuffledCopy(ATTRIBUTES).map((attribute) =>
+  const trials = shuffledCopy(ATTRIBUTES).map((attribute, attributeIndex) =>
     buildRepeatingTrial({
       data: {
         task: "fit_judgment",
-        category_id: category.id,
-        category_label: category.label,
+        brand_id: brand.id,
+        brand_label: brand.label,
+        brand_index: brandIndex,
         attribute,
+        attribute_index: attributeIndex,
       },
       buildStimulus: () => `
-        <div class="category-label">${category.label}</div>
+        ${brandHeader(brand)}
         <div class="attribute-word">${attribute}</div>
       `,
-      buildChoices: () => choices,
-      buildButtonHtml: () => [
-        '<button class="jspsych-btn fits-btn">%choice%</button>',
-        '<button class="jspsych-btn does-not-fit-btn">%choice%</button>',
-      ],
+      buildChoices: () => FIT_RESPONSES.map((r) => r.label),
+      buildButtonHtml: () =>
+        FIT_RESPONSES.map((r) => `<button class="jspsych-btn ${r.className}">%choice%</button>`),
       onLoad: () => bindKeyboardChoice(),
       onValidResponse: (data) => {
-        data.response_label = choices[data.response];
+        const chosen = FIT_RESPONSES[data.response];
+        data.response_code = chosen.code;
+        data.response_label = chosen.label;
+        completedJudgments += 1;
+        jsPsych.setProgressBar(completedJudgments / TOTAL_JUDGMENTS);
         logTrial(sessionId, {
           task: data.task,
-          category_id: data.category_id,
-          category_label: data.category_label,
+          brand_id: data.brand_id,
+          brand_label: data.brand_label,
+          brand_index: data.brand_index,
           attribute: data.attribute,
+          attribute_index: data.attribute_index,
+          response_code: data.response_code,
           response_label: data.response_label,
           rt_ms: data.rt,
         }).catch((error) => console.error("Failed to log trial:", error));
@@ -146,106 +177,42 @@ function buildFitBlock(category) {
     })
   );
 
-  return [instructions, ...trials];
+  return [brandIntro, ...trials];
 }
 
-function buildPaletteBlock() {
-  // Shuffled once for the whole block (not per trial) so left/right position
-  // stays fixed for this respondent — randomized across respondents to
-  // counterbalance position bias, but stable within a session so choosing
-  // isn't complicated by the palettes swapping sides every trial.
-  const orderedPalettes = shuffledCopy(PALETTES);
+function run() {
+  const brandOrder = shuffledCopy(BRANDS);
 
-  const instructions = {
-    type: htmlButtonResponse,
-    stimulus: `
-      <h2>Color Match</h2>
-      <p>For each word, choose the color palette you feel best fits it.</p>
-      <p>On a computer, you can also press <strong>E</strong> for the left
-      palette or <strong>I</strong> for the right palette.</p>
-    `,
-    choices: ["Start"],
-  };
-
-  const palettePreview = {
-    type: htmlButtonResponse,
-    stimulus: `
-      <p>You will be answering the next set of association questions for
-      <strong>these two color palettes</strong> Take a moment to familiarize yourself with each.
-      When you see a word, quickly pick the color palette that closely matches that word.</p>
-      <div class="palette-preview">
-        ${orderedPalettes
-          .map((p) => `<img src="${p.image}" alt="${p.label}" class="palette-preview-img" />`)
-          .join("")}
-      </div>
-      <p>You may press E for the left color palette and I for the right color palette, or simply click the palette of your choice.
-      Press Continue when you're ready.</p>
-    `,
-    choices: ["Continue"],
-  };
-
-  const trials = shuffledCopy(ATTRIBUTES).map((attribute) => {
-    return buildRepeatingTrial({
-      data: {
-        task: "palette_choice",
-        attribute,
-      },
-      buildStimulus: () => `<div class="attribute-word">${attribute}</div>`,
-      buildChoices: () => orderedPalettes.map((p) => p.label),
-      buildButtonHtml: () =>
-        orderedPalettes.map(
-          (p) => `<button class="jspsych-btn palette-btn"><img src="${p.image}" alt="${p.label}" /></button>`
-        ),
-      onLoad: () => bindKeyboardChoice(),
-      onValidResponse: (data) => {
-        const chosen = orderedPalettes[data.response];
-        data.palette_id = chosen.id;
-        data.palette_label = chosen.label;
-        logTrial(sessionId, {
-          task: data.task,
-          attribute: data.attribute,
-          palette_id: data.palette_id,
-          palette_label: data.palette_label,
-          rt_ms: data.rt,
-        }).catch((error) => console.error("Failed to log trial:", error));
-      },
-    });
-  });
-
-  return [instructions, palettePreview, ...trials];
-}
-
-async function run() {
-  const categoryOrder = shuffledCopy(CATEGORIES);
-
-  // Fire-and-forget: a Firebase hiccup (or, right now, the placeholder
-  // credentials in firebase-config.js) should never block the survey
-  // from rendering for the respondent.
+  // Fire-and-forget: a Firebase hiccup should never block the survey from
+  // rendering for the respondent.
   startSession(sessionId, {
     user_agent: navigator.userAgent,
-    category_order: categoryOrder.map((c) => c.id),
+    brand_order: brandOrder.map((b) => b.id),
     rdud,
-    state,
+    state: surveyState,
     inbound_code: inboundCode,
   }).catch((error) => console.error("Failed to start Firebase session:", error));
 
   const timeline = [
     {
       type: preload,
-      images: PALETTES.map((p) => p.image),
+      images: BRANDS.map((b) => b.image),
+    },
+    {
+      type: htmlButtonResponse,
+      stimulus: TEXT.intro_html,
+      choices: [TEXT.intro_button],
     },
   ];
 
-  categoryOrder.forEach((category) => {
-    timeline.push(...buildFitBlock(category));
+  brandOrder.forEach((brand, brandIndex) => {
+    timeline.push(...buildBrandBlock(brand, brandIndex));
   });
-
-  timeline.push(...buildPaletteBlock());
 
   timeline.push({
     type: htmlButtonResponse,
-    stimulus: "<h2>Thank you!</h2><p>Your responses have been recorded. Please click the continue button to proceed to the final portion of the study. Do not close your browser window.</p>",
-    choices: ["Continue"],
+    stimulus: TEXT.thank_you_html,
+    choices: [TEXT.thank_you_button],
   });
 
   jsPsych.run(timeline);
