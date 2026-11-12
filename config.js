@@ -14,7 +14,7 @@ export const BRANDS = [
   { id: "ifood", label: "ifood", image: "assets/images/brands/ifood_logo.webp" },
   { id: "Nubank", label: "Nubank", image: "assets/images/brands/Nubank_logo.webp" },
   { id: "Uber", label: "Uber", image: "assets/images/brands/Uber_logo.png" },
-  { id: "Vivo", label: "Vivo", image: "assets/images/brands/Vivo_logo.webp" },
+  { id: "Vivo", label: "Vivo", image: "assets/images/brands/vivo_logo.webp" },
 ];
 
 // Attribute words/phrases. Every brand is tested against every attribute,
