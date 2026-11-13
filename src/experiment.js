@@ -3,7 +3,7 @@ import htmlButtonResponse from "https://unpkg.com/@jspsych/plugin-html-button-re
 import preload from "https://unpkg.com/@jspsych/plugin-preload@1.1.3/dist/index.js";
 
 import { BRANDS, ATTRIBUTES, PRE_TEST, TEXT, MIN_RESPONSE_TIME_MS, NEXT_SURVEY_URL } from "../config.js";
-import { respondentKeyFor, createAttemptId, startSession, logTrial, completeSession } from "./firebase.js";
+import { respondentKeyFor, startSession, logTrial, completeSession } from "./firebase.js";
 
 document.title = TEXT.page_title;
 
@@ -15,10 +15,8 @@ const rdud = inboundParams.get("rdud") || "";
 const surveyState = inboundParams.get("state") || "";
 const inboundCode = inboundParams.get("inbound_code") || "";
 
-// All of a respondent's data goes in one Firebase node keyed by rdud; each
-// page load is a separate attempt within it (see firebase.js).
+// Each respondent's data goes in one Firebase node keyed by their rdud.
 const respondentKey = respondentKeyFor(rdud);
-const attemptId = createAttemptId();
 
 function buildNextSurveyUrl() {
   const params = new URLSearchParams({ list: "1" });
@@ -39,7 +37,7 @@ const jsPsych = initJsPsych({
   auto_update_progress_bar: false,
   message_progress_bar: TEXT.progress_bar_label,
   on_finish: () => {
-    completeSession(respondentKey, attemptId)
+    completeSession(respondentKey)
       .catch((error) => console.error("Failed to complete session:", error))
       .finally(() => {
         window.location.href = buildNextSurveyUrl();
@@ -240,7 +238,7 @@ function buildFitTrial({ header, attribute, data, countsTowardProgress = true })
       if (data.expected_response) {
         record.correct = chosen.code === data.expected_response;
       }
-      logTrial(respondentKey, attemptId, record).catch((error) => console.error("Failed to log trial:", error));
+      logTrial(respondentKey, record).catch((error) => console.error("Failed to log trial:", error));
     },
   });
 }
@@ -248,19 +246,13 @@ function buildFitTrial({ header, attribute, data, countsTowardProgress = true })
 function run() {
   const brandOrder = shuffledCopy(BRANDS);
 
-  // Fire-and-forget: a Firebase hiccup should never block the survey from
-  // rendering for the respondent.
-  startSession(respondentKey, attemptId, {
-    respondent: {
-      rdud,
-      state: surveyState,
-      inbound_code: inboundCode,
-    },
-    attempt: {
-      user_agent: navigator.userAgent,
-      brand_order: brandOrder.map((b) => b.id),
-    },
-  }).catch((error) => console.error("Failed to start Firebase session:", error));
+  startSession(respondentKey, {
+    rdud,
+    state: surveyState,
+    inbound_code: inboundCode,
+    user_agent: navigator.userAgent,
+    brand_order: brandOrder.map((b) => b.id),
+  }).catch((error) => console.error("Failed to start session:", error));
 
   const timeline = [
     {
