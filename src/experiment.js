@@ -3,7 +3,7 @@ import htmlButtonResponse from "https://unpkg.com/@jspsych/plugin-html-button-re
 import preload from "https://unpkg.com/@jspsych/plugin-preload@1.1.3/dist/index.js";
 
 import { BRANDS, ATTRIBUTES, PRE_TEST, TEXT, MIN_RESPONSE_TIME_MS, NEXT_SURVEY_URL } from "../config.js";
-import { respondentKeyFor, startSession, logTrial, completeSession } from "./firebase.js";
+import { saveSession } from "./firebase.js";
 
 document.title = TEXT.page_title;
 
@@ -15,8 +15,10 @@ const rdud = inboundParams.get("rdud") || "";
 const surveyState = inboundParams.get("state") || "";
 const inboundCode = inboundParams.get("inbound_code") || "";
 
-// Each respondent's data goes in one Firebase node keyed by their rdud.
-const respondentKey = respondentKeyFor(rdud);
+// Every trial is collected here, then saved to Firebase in one go when the
+// respondent finishes.
+const responses = [];
+const brandOrder = [];
 
 function buildNextSurveyUrl() {
   const params = new URLSearchParams({ list: "1" });
@@ -37,8 +39,15 @@ const jsPsych = initJsPsych({
   auto_update_progress_bar: false,
   message_progress_bar: TEXT.progress_bar_label,
   on_finish: () => {
-    completeSession(respondentKey)
-      .catch((error) => console.error("Failed to complete session:", error))
+    saveSession(rdud, {
+      rdud,
+      state: surveyState,
+      inbound_code: inboundCode,
+      user_agent: navigator.userAgent,
+      brand_order: brandOrder.map((b) => b.id),
+      responses,
+    })
+      .catch((error) => console.error("Failed to save session:", error))
       .finally(() => {
         window.location.href = buildNextSurveyUrl();
       });
@@ -209,8 +218,8 @@ function buildPreTestBlock() {
 }
 
 // A single Fits / Does Not Fit trial: `header` HTML (brand logo/name or a
-// practice image) above the attribute word. Everything in `data` is saved to
-// Firebase along with the response.
+// practice image) above the attribute word. Everything in `data` is kept with
+// the response and saved to Firebase when the survey finishes.
 function buildFitTrial({ header, attribute, data, countsTowardProgress = true }) {
   return buildRepeatingTrial({
     data,
@@ -238,21 +247,13 @@ function buildFitTrial({ header, attribute, data, countsTowardProgress = true })
       if (data.expected_response) {
         record.correct = chosen.code === data.expected_response;
       }
-      logTrial(respondentKey, record).catch((error) => console.error("Failed to log trial:", error));
+      responses.push(record);
     },
   });
 }
 
 function run() {
-  const brandOrder = shuffledCopy(BRANDS);
-
-  startSession(respondentKey, {
-    rdud,
-    state: surveyState,
-    inbound_code: inboundCode,
-    user_agent: navigator.userAgent,
-    brand_order: brandOrder.map((b) => b.id),
-  }).catch((error) => console.error("Failed to start session:", error));
+  brandOrder.push(...shuffledCopy(BRANDS));
 
   const timeline = [
     {
