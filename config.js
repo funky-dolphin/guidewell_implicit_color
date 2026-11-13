@@ -56,7 +56,6 @@ export const ATTRIBUTES = [
 "Conforto",
 "Pertencimento",
 "Confiável",
-"Confiança",
 "Alegria",
 "Despreocupação",
 "Prazer",
@@ -67,11 +66,28 @@ export const ATTRIBUTES = [
 "Entusiasmo",
 "Inspiração",
 "Diversão",
-"Alegria",
 "Individualidade",
 "Exploração",
 "Curiosidade",
 "Vibrante"
+];
+
+// Practice round shown before the real study so respondents can get used to
+// the format. Each item is one image + one word with an obvious answer, shown
+// in random order. Saved to Firebase with task "pre_test" (plus the expected
+// answer and whether the respondent got it right) so it's easy to exclude
+// from analysis or use as an attention check. It doesn't advance the
+// progress bar.
+//   id       — stable identifier saved with the data
+//   image    — path relative to index.html
+//   attribute — the word shown under the image
+//   expected — "fits" or "does_not_fit"
+export const PRE_TEST = [
+  { id: "sun", image: "assets/images/pre_test/sun.svg", attribute: "Quente", expected: "fits" },
+  { id: "snowflake", image: "assets/images/pre_test/snowflake.svg", attribute: "Quente", expected: "does_not_fit" },
+  { id: "heart", image: "assets/images/pre_test/heart.svg", attribute: "Amor", expected: "fits" },
+  { id: "moon", image: "assets/images/pre_test/moon.svg", attribute: "Dia", expected: "does_not_fit" },
+  { id: "lightning", image: "assets/images/pre_test/lightning.svg", attribute: "Energia", expected: "fits" },
 ];
 
 // All respondent-facing text. HTML is allowed. `{brand}` is replaced with the
@@ -93,6 +109,24 @@ export const TEXT = {
     Combina ou <strong>I</strong> para Não Combina.</p>
   `,
   intro_button: "Começar",
+
+  // Shown before the practice round.
+  pre_test_intro_html: `
+    <h2>Treino</h2>
+    <p>Primeiro, um breve treino para você se familiarizar com o formato.
+    Você verá uma imagem e uma palavra. Escolha se a palavra
+    <strong>Combina</strong> ou <strong>Não Combina</strong> com a imagem.</p>
+    <p>Clique em Começar quando estiver pronto(a).</p>
+  `,
+  pre_test_intro_button: "Começar",
+
+  // Shown after the practice round, before the first real brand.
+  pre_test_done_html: `
+    <h2>Treino concluído!</h2>
+    <p>Agora vamos começar o estudo. Lembre-se: responda o mais rápido
+    possível, com base na sua primeira impressão.</p>
+  `,
+  pre_test_done_button: "Continuar",
 
   // Shown before each brand's block, above/below the brand's logo and name.
   brand_intro_before_html: "<p>A próxima marca é:</p>",

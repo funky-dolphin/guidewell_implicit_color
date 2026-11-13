@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
+  <rect width="300" height="300" rx="28" fill="#e7f5ff"/>
+  <g stroke="#339af0" stroke-width="12" stroke-linecap="round" fill="none">
+    <g id="arm">
+      <line x1="150" y1="150" x2="150" y2="40"/>
+      <polyline points="122,62 150,88 178,62"/>
+      <polyline points="130,100 150,118 170,100"/>
+    </g>
+    <use href="#arm" transform="rotate(60 150 150)"/>
+    <use href="#arm" transform="rotate(120 150 150)"/>
+    <use href="#arm" transform="rotate(180 150 150)"/>
+    <use href="#arm" transform="rotate(240 150 150)"/>
+    <use href="#arm" transform="rotate(300 150 150)"/>
+  </g>
+</svg>

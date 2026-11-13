@@ -107,3 +107,11 @@ body {
     margin: 8px 0;
   }
 }
+
+.pre-test-image {
+  width: min(200px, 50vw);
+  height: auto;
+  display: block;
+  margin: 0 auto 8px;
+  border-radius: 16px;
+}

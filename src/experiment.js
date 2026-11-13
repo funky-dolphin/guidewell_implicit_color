@@ -2,7 +2,7 @@ import { initJsPsych } from "jspsych";
 import htmlButtonResponse from "https://unpkg.com/@jspsych/plugin-html-button-response@1.1.3/dist/index.js";
 import preload from "https://unpkg.com/@jspsych/plugin-preload@1.1.3/dist/index.js";
 
-import { BRANDS, ATTRIBUTES, TEXT, MIN_RESPONSE_TIME_MS, NEXT_SURVEY_URL } from "../config.js";
+import { BRANDS, ATTRIBUTES, PRE_TEST, TEXT, MIN_RESPONSE_TIME_MS, NEXT_SURVEY_URL } from "../config.js";
 import { createSessionId, startSession, logTrial, completeSession } from "./firebase.js";
 
 const sessionId = createSessionId();
@@ -165,7 +165,9 @@ function buildBrandBlock(brand, brandIndex) {
   );
 
   const trials = shuffledCopy(ATTRIBUTES).map((attribute, attributeIndex) =>
-    buildRepeatingTrial({
+    buildFitTrial({
+      header: brandHeader(brand),
+      attribute,
       data: {
         task: "fit_judgment",
         brand_id: brand.id,
@@ -174,35 +176,70 @@ function buildBrandBlock(brand, brandIndex) {
         attribute,
         attribute_index: attributeIndex,
       },
-      buildStimulus: () => `
-        ${brandHeader(brand)}
-        <div class="attribute-word">${attribute}</div>
-      `,
-      buildChoices: () => FIT_RESPONSES.map((r) => r.label),
-      buildButtonHtml: () => FIT_RESPONSES.map((r) => buttonWithHint(r.className, r.hint)),
-      onLoad: bindFitKeys,
-      onValidResponse: (data) => {
-        const chosen = FIT_RESPONSES[data.response];
-        data.response_code = chosen.code;
-        data.response_label = chosen.label;
-        completedJudgments += 1;
-        jsPsych.setProgressBar(completedJudgments / TOTAL_JUDGMENTS);
-        logTrial(sessionId, {
-          task: data.task,
-          brand_id: data.brand_id,
-          brand_label: data.brand_label,
-          brand_index: data.brand_index,
-          attribute: data.attribute,
-          attribute_index: data.attribute_index,
-          response_code: data.response_code,
-          response_label: data.response_label,
-          rt_ms: data.rt,
-        }).catch((error) => console.error("Failed to log trial:", error));
-      },
     })
   );
 
   return [brandIntro, ...trials];
+}
+
+// Practice round: one image + one word per item, in random order. Logged
+// with task "pre_test" plus whether the answer matched the expected one, and
+// not counted toward the progress bar.
+function buildPreTestBlock() {
+  const intro = continueScreen(TEXT.pre_test_intro_html, TEXT.pre_test_intro_button);
+
+  const trials = shuffledCopy(PRE_TEST).map((item, itemIndex) =>
+    buildFitTrial({
+      header: `<img src="${item.image}" alt="" class="pre-test-image" />`,
+      attribute: item.attribute,
+      countsTowardProgress: false,
+      data: {
+        task: "pre_test",
+        pre_test_item_id: item.id,
+        attribute: item.attribute,
+        attribute_index: itemIndex,
+        expected_response: item.expected,
+      },
+    })
+  );
+
+  const done = continueScreen(TEXT.pre_test_done_html, TEXT.pre_test_done_button);
+  return [intro, ...trials, done];
+}
+
+// A single Fits / Does Not Fit trial: `header` HTML (brand logo/name or a
+// practice image) above the attribute word. Everything in `data` is saved to
+// Firebase along with the response.
+function buildFitTrial({ header, attribute, data, countsTowardProgress = true }) {
+  return buildRepeatingTrial({
+    data,
+    buildStimulus: () => `
+      ${header}
+      <div class="attribute-word">${attribute}</div>
+    `,
+    buildChoices: () => FIT_RESPONSES.map((r) => r.label),
+    buildButtonHtml: () => FIT_RESPONSES.map((r) => buttonWithHint(r.className, r.hint)),
+    onLoad: bindFitKeys,
+    onValidResponse: (trialData) => {
+      const chosen = FIT_RESPONSES[trialData.response];
+      trialData.response_code = chosen.code;
+      trialData.response_label = chosen.label;
+      if (countsTowardProgress) {
+        completedJudgments += 1;
+        jsPsych.setProgressBar(completedJudgments / TOTAL_JUDGMENTS);
+      }
+      const record = {
+        ...data,
+        response_code: chosen.code,
+        response_label: chosen.label,
+        rt_ms: trialData.rt,
+      };
+      if (data.expected_response) {
+        record.correct = chosen.code === data.expected_response;
+      }
+      logTrial(sessionId, record).catch((error) => console.error("Failed to log trial:", error));
+    },
+  });
 }
 
 function run() {
@@ -221,9 +258,10 @@ function run() {
   const timeline = [
     {
       type: preload,
-      images: BRANDS.map((b) => b.image),
+      images: [...PRE_TEST.map((item) => item.image), ...BRANDS.map((b) => b.image)],
     },
     continueScreen(TEXT.intro_html, TEXT.intro_button),
+    ...buildPreTestBlock(),
   ];
 
   brandOrder.forEach((brand, brandIndex) => {
